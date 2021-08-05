@@ -58,7 +58,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importStar(__webpack_require__(13));
 const ChecklistApp_1 = __importDefault(__webpack_require__(22));
-const InputFile_1 = __importDefault(__webpack_require__(31));
+const InputFile_1 = __importDefault(__webpack_require__(37));
 const SApp = styled_components_1.default.div `
     background-color: #f2f2f2;
     min-height: 100vh;
@@ -70,6 +70,13 @@ const Global = styled_components_1.createGlobalStyle `
         margin: 0px;
         padding: 0px;
         font-family: 'Segoe UI', sans-serif;
+    }
+    :root {
+        --size: 16px;
+        --color-done: green;
+        --color-disabled: grey;
+        --color-active: blue;
+        --color-default: black;
     }
 `;
 const App = () => {
@@ -133,8 +140,9 @@ const Info_1 = __importDefault(__webpack_require__(29));
 const TNode_1 = __importDefault(__webpack_require__(30));
 const SChecklistApp = styled_components_1.default.div `
     display: grid;
-    grid-gap: 12px;
-    grid-template-columns: 188px 600px;
+    grid-gap: 16px;
+    grid-template-columns: 3fr 1fr;
+    max-width: 1024px;
 `;
 const ChecklistApp = ({ xml }) => {
     const checklist = react_1.useMemo(() => new Checklist_1.default(xml, {}, {
@@ -148,6 +156,9 @@ const ChecklistApp = ({ xml }) => {
     const render = react_1.useCallback((text) => {
         return checklist.render(text);
     }, [checklist]);
+    const getStepInitialVariables = react_1.useCallback((aStep) => {
+        return checklist.getStepInitialVariables(aStep);
+    }, [checklist]);
     const checklistData = react_1.useMemo(() => ({
         steps: checklist.getSteps(),
         sections: checklist.getSections(),
@@ -155,13 +166,14 @@ const ChecklistApp = ({ xml }) => {
         render,
         current: checklist.getCurrentStep(),
         finished: checklist.isFisished(),
+        getStepInitialVariables,
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [checklist, finishStep, render, step]);
     return (react_1.default.createElement(ChecklistDataContext_1.default.Provider, { value: checklistData },
         react_1.default.createElement(SChecklistApp, null,
+            react_1.default.createElement(TNode_1.default, { treeNode: checklist.getTreeNode() }),
             react_1.default.createElement("div", null,
-                react_1.default.createElement(Info_1.default, null)),
-            react_1.default.createElement(TNode_1.default, { treeNode: checklist.getTreeNode() }))));
+                react_1.default.createElement(Info_1.default, null)))));
 };
 exports.default = ChecklistApp;
 
@@ -244,7 +256,6 @@ class Checklist {
                 : true;
         });
         this.steps.forEach((step) => {
-            ;
             step.enabled = step.condition
                 ? Templater_1.calc(step.condition, this.stepsStorage.getVariablesToStep(step.id), this.methods)
                 : true;
@@ -303,6 +314,12 @@ class Checklist {
             return;
         }
         this.finished = false;
+    }
+    getStepInitialVariables(step) {
+        return Object.keys(step.variables).reduce((obj, key) => {
+            obj[key] = this.render(step.variables[key]);
+            return obj;
+        }, {});
     }
     backToStep(id) {
         const index = this.steps.findIndex((step) => step.id === id);
@@ -506,7 +523,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.convertXMLTreeNodeToTreeNode = void 0;
 const XMLParser_1 = __webpack_require__(27);
 function convertXMLTreeNodeToTreeNode(node, id, order) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
     switch (node.tag) {
         case 'main': {
             return {
@@ -552,7 +569,7 @@ function convertXMLTreeNodeToTreeNode(node, id, order) {
                 variables,
                 children: node.children
                     .map((aNode) => convertXMLTreeNodeToTreeNode(aNode, id, 0))
-                    .filter((aNode) => aNode !== null),
+                    .filter((aNode) => aNode !== null && aNode.type !== 'variable' && aNode.type !== 'template'),
             };
         }
         case 'variable': {
@@ -562,12 +579,19 @@ function convertXMLTreeNodeToTreeNode(node, id, order) {
                 value: (_g = node.attributes.value) !== null && _g !== void 0 ? _g : '',
             };
         }
+        case 'template': {
+            return {
+                type: 'template',
+                name: (_h = node.attributes.name) !== null && _h !== void 0 ? _h : '',
+                text: XMLParser_1.childrenToText(node),
+            };
+        }
         case 'input': {
             return {
                 type: 'input',
-                title: (_h = node.attributes.title) !== null && _h !== void 0 ? _h : '',
-                name: (_j = node.attributes.name) !== null && _j !== void 0 ? _j : '',
-                value: (_k = node.attributes.value) !== null && _k !== void 0 ? _k : '',
+                title: (_j = node.attributes.title) !== null && _j !== void 0 ? _j : '',
+                name: (_k = node.attributes.name) !== null && _k !== void 0 ? _k : '',
+                value: (_l = node.attributes.value) !== null && _l !== void 0 ? _l : '',
             };
         }
         case 'text': {
@@ -591,22 +615,22 @@ function convertXMLTreeNodeToTreeNode(node, id, order) {
         case 'image': {
             return {
                 type: 'image',
-                src: (_l = node.attributes.src) !== null && _l !== void 0 ? _l : '',
+                src: (_m = node.attributes.src) !== null && _m !== void 0 ? _m : '',
             };
         }
         case 'link': {
             return {
                 type: 'link',
-                href: (_m = node.attributes.href) !== null && _m !== void 0 ? _m : '',
+                href: (_o = node.attributes.href) !== null && _o !== void 0 ? _o : '',
                 text: XMLParser_1.childrenToText(node),
             };
         }
         case 'select': {
             return {
                 type: 'select',
-                title: (_o = node.attributes.title) !== null && _o !== void 0 ? _o : '',
-                name: (_p = node.attributes.name) !== null && _p !== void 0 ? _p : '',
-                value: (_q = node.attributes.value) !== null && _q !== void 0 ? _q : '',
+                title: (_p = node.attributes.title) !== null && _p !== void 0 ? _p : '',
+                name: (_q = node.attributes.name) !== null && _q !== void 0 ? _q : '',
+                value: (_r = node.attributes.value) !== null && _r !== void 0 ? _r : '',
                 options: node.children
                     .filter((aNode) => aNode.tag === 'option')
                     .map((aNode) => {
@@ -621,9 +645,9 @@ function convertXMLTreeNodeToTreeNode(node, id, order) {
         case 'radio': {
             return {
                 type: 'radio',
-                title: (_r = node.attributes.title) !== null && _r !== void 0 ? _r : '',
-                name: (_s = node.attributes.name) !== null && _s !== void 0 ? _s : '',
-                value: (_t = node.attributes.value) !== null && _t !== void 0 ? _t : '',
+                title: (_s = node.attributes.title) !== null && _s !== void 0 ? _s : '',
+                name: (_t = node.attributes.name) !== null && _t !== void 0 ? _t : '',
+                value: (_u = node.attributes.value) !== null && _u !== void 0 ? _u : '',
                 options: node.children
                     .filter((aNode) => aNode.tag === 'option')
                     .map((aNode) => {
@@ -873,6 +897,12 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importStar(__webpack_require__(13));
 const ChecklistDataContext_1 = __importDefault(__webpack_require__(28));
+const StepVariablesContext_1 = __importDefault(__webpack_require__(31));
+const InputTNode_1 = __importDefault(__webpack_require__(32));
+const LinkTNode_1 = __importDefault(__webpack_require__(33));
+const RadioTNode_1 = __importDefault(__webpack_require__(34));
+const TextblockTNode_1 = __importDefault(__webpack_require__(35));
+const TextTNode_1 = __importDefault(__webpack_require__(36));
 const SMainTNode = styled_components_1.default.div `
     font-size: 16px;
     line-height: 20px;
@@ -880,11 +910,6 @@ const SMainTNode = styled_components_1.default.div `
     box-sizing: border-box;
     padding: 16px;
     margin: 0 auto;
-    --size: 16px;
-    --color-done: green;
-    --color-disabled: grey;
-    --color-active: blue;
-    --color-default: black;
 `;
 const SMainTNodeTitle = styled_components_1.default.div `
     font-size: 36px;
@@ -895,10 +920,28 @@ const SMainTNodeBody = styled_components_1.default.div `
     margin-top: 16px;
     margin-left: 16px;
 `;
+const SMainTNodeFinished = styled_components_1.default.div `
+    margin-top: 16px;
+    padding: 12px;
+    text-align: center;
+    font-size: 20px;
+    box-sizing: border-box;
+    border-radius: 8px;
+    background-color: lightgreen;
+    color: black;
+`;
 const MainTNode = ({ treeNode }) => {
+    const { finished } = react_1.useContext(ChecklistDataContext_1.default);
+    const ref = react_1.useRef();
+    react_1.useLayoutEffect(() => {
+        if (finished) {
+            ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [finished]);
     return (react_1.default.createElement(SMainTNode, null,
         react_1.default.createElement(SMainTNodeTitle, null, treeNode.title),
-        react_1.default.createElement(SMainTNodeBody, null, treeNode.children.map((child, i) => react_1.default.createElement(TNode, { key: String(i), treeNode: child })))));
+        react_1.default.createElement(SMainTNodeBody, null, treeNode.children.map((child, i) => react_1.default.createElement(TNode, { key: String(i), treeNode: child }))),
+        finished && react_1.default.createElement(SMainTNodeFinished, { ref: ref }, "Checklist has been finished")));
 };
 const SSectionTNode = styled_components_1.default.div `
     position: relative;
@@ -935,7 +978,7 @@ const SSectionTNode = styled_components_1.default.div `
             position: absolute;
             width: calc(var(--size) * 2 + 1px);
             height: 2px;
-            border: 1px solid var(--border-color);
+            border: 1px solid lightgrey;
             top: calc(var(--size) - 1px);
             box-sizing: border-box;
             left: calc(var(--size) * -2 - 1px);
@@ -951,7 +994,7 @@ const SSectionTNodeTitle = styled_components_1.default.div `
     font-weight: 600;
 `;
 const SSectionTNodeBody = styled_components_1.default.div `
-    border-left: 2px solid var(--border-color);
+    border-left: 2px solid lightgrey;
     margin-left: calc(var(--size) - 1px);
     padding-left: 1px;
     padding-top: var(--size);
@@ -1029,18 +1072,34 @@ const SStepTNode = styled_components_1.default.div `
 const SStepTNodeContainer = styled_components_1.default.div `
     margin-left: var(--size);
     border-radius: 8px;
+    border-top-left-radius: 0px;
     box-shadow: inset 0 0 0 1px rgb(0 0 0 / 10%);
     background-color: #fff;
-    overflow: hidden;
+    position: relative;
+    box-sizing: border-box;
+
+    &::before {
+        content: '';
+        --size: 16px;
+        height: calc(var(--size) * 2);
+        width: calc(var(--size) * 2);
+        position: absolute;
+        top: 0px;
+        left: calc(var(--size) * -2);
+        border: calc(var(--size)) solid transparent;
+        border-right: calc(var(--size) / 2) solid var(--border-color);
+        box-sizing: border-box;
+    }
 `;
 const SStepTNodeTitle = styled_components_1.default.div `
     min-height: calc(var(--size) * 2);
     line-height: calc(var(--size) * 2);
-    font-size: 18px;
+    font-size: 14px;
     font-weight: 600;
     padding: 0px 20px;
     color: white;
     background-color: var(--border-color);
+    border-top-right-radius: 8px;
 `;
 const SStepTNodeBody = styled_components_1.default.div `
     border-top: 1px solid rgb(0 0 0 / 10%);
@@ -1065,12 +1124,11 @@ const SStepTNodeButton = styled_components_1.default.div `
     text-align: center;
     color: white;
     font-weight: bold;
-    font-size: 16px;
+    font-size: 14px;
     cursor: pointer;
 `;
-const StepVariablesContext = react_1.default.createContext({});
 const StepTNode = ({ treeNode }) => {
-    const { current, steps, finishStep, render } = react_1.useContext(ChecklistDataContext_1.default);
+    const { current, steps, finishStep, render, getStepInitialVariables } = react_1.useContext(ChecklistDataContext_1.default);
     const step = react_1.useMemo(() => steps.find((aStep) => aStep.id === treeNode.id), [
         steps,
         treeNode,
@@ -1078,24 +1136,16 @@ const StepTNode = ({ treeNode }) => {
     const order = react_1.useMemo(() => {
         return Number(treeNode.id.split(':').pop()) + 1;
     }, [treeNode]);
-    const [variables, setVariables] = react_1.useState(() => {
-        return Object.keys(treeNode.variables).reduce((obj, key) => {
-            obj[key] = render(treeNode.variables[key]);
-            return obj;
-        }, {});
-    });
+    const [variables, setVariables] = react_1.useState(() => getStepInitialVariables(step));
     const ref = react_1.useRef();
     const [canFinish, setCanFinish] = react_1.useState(() => step === current && Object.values(variables).every(Boolean));
     react_1.useEffect(() => {
         if (step === current) {
-            const newVariables = Object.keys(treeNode.variables).reduce((obj, key) => {
-                obj[key] = render(treeNode.variables[key]);
-                return obj;
-            }, {});
+            const newVariables = getStepInitialVariables(step);
             setVariables(newVariables);
             setCanFinish(Object.values(newVariables).every(Boolean));
         }
-    }, [treeNode, render, step, current]);
+    }, [treeNode, render, step, current, getStepInitialVariables]);
     react_1.useLayoutEffect(() => {
         if (step === current) {
             ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1130,9 +1180,80 @@ const StepTNode = ({ treeNode }) => {
                 ". ",
                 treeNode.title),
             react_1.default.createElement(SStepTNodeBody, null,
-                react_1.default.createElement(StepVariablesContext.Provider, { value: context }, treeNode.children.map((child, i) => react_1.default.createElement(TNode, { key: String(i), treeNode: child }))),
+                react_1.default.createElement(StepVariablesContext_1.default.Provider, { value: context }, treeNode.children.map((child, i) => react_1.default.createElement(TNode, { key: String(i), treeNode: child }))),
                 (step.finished || step === current) && (react_1.default.createElement(SStepTNodeButton, { enabled: canFinish, onClick: onClick }, buttonText))))));
 };
+function TNode({ treeNode }) {
+    switch (treeNode.type) {
+        case 'main':
+            return react_1.default.createElement(MainTNode, { treeNode: treeNode });
+        case 'section':
+            return react_1.default.createElement(SectionTNode, { treeNode: treeNode });
+        case 'step':
+            return react_1.default.createElement(StepTNode, { treeNode: treeNode });
+        case 'input':
+            return react_1.default.createElement(InputTNode_1.default, { treeNode: treeNode });
+        case 'radio':
+            return react_1.default.createElement(RadioTNode_1.default, { treeNode: treeNode });
+        case 'text':
+            return react_1.default.createElement(TextTNode_1.default, { treeNode: treeNode });
+        case 'textblock':
+            return react_1.default.createElement(TextblockTNode_1.default, { treeNode: treeNode });
+        case 'link':
+            return react_1.default.createElement(LinkTNode_1.default, { treeNode: treeNode });
+        default:
+            return null;
+        // return <div className={treeNode.type}>{treeNode.type}</div>;
+    }
+}
+exports.default = TNode;
+
+
+/***/ }),
+/* 31 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const react_1 = __importDefault(__webpack_require__(1));
+const StepVariablesContext = react_1.default.createContext({});
+exports.default = StepVariablesContext;
+
+
+/***/ }),
+/* 32 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const react_1 = __importStar(__webpack_require__(1));
+const styled_components_1 = __importDefault(__webpack_require__(13));
+const StepVariablesContext_1 = __importDefault(__webpack_require__(31));
 const SInputTNode = styled_components_1.default.div `
     position: relative;
     border: 2px solid lightgrey;
@@ -1165,7 +1286,7 @@ const SInputTNodeInput = styled_components_1.default.input `
     }
 `;
 const InputTNode = ({ treeNode }) => {
-    const { variables, enabled, set } = react_1.useContext(StepVariablesContext);
+    const { variables, enabled, set } = react_1.useContext(StepVariablesContext_1.default);
     const onChange = react_1.useCallback((e) => {
         set(treeNode.name, e.target.value);
     }, [set, treeNode.name]);
@@ -1173,6 +1294,94 @@ const InputTNode = ({ treeNode }) => {
         react_1.default.createElement(SInputTNodeLabel, null, treeNode.title),
         react_1.default.createElement(SInputTNodeInput, { type: "text", value: variables[treeNode.name], onChange: onChange, disabled: !enabled })));
 };
+exports.default = InputTNode;
+
+
+/***/ }),
+/* 33 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const react_1 = __importStar(__webpack_require__(1));
+const styled_components_1 = __importDefault(__webpack_require__(13));
+const ChecklistDataContext_1 = __importDefault(__webpack_require__(28));
+const SLinkTNode = styled_components_1.default.a `
+    margin-top: 8px;
+    line-height: 20px;
+    font-size: 14px;
+    display: flex;
+    text-decoration: none;
+    align-items: center;
+
+    &::before {
+        content: '➤';
+        margin-right: 4px;
+        font-size: 20px;
+        height: 20px;
+        display: inline-block;
+    }
+`;
+const LinkTNode = ({ treeNode }) => {
+    const { render } = react_1.useContext(ChecklistDataContext_1.default);
+    return react_1.default.createElement(SLinkTNode, { href: render(treeNode.href) }, render(treeNode.text));
+};
+exports.default = LinkTNode;
+
+
+/***/ }),
+/* 34 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const react_1 = __importStar(__webpack_require__(1));
+const styled_components_1 = __importDefault(__webpack_require__(13));
+const StepVariablesContext_1 = __importDefault(__webpack_require__(31));
 const SRadioTNode = styled_components_1.default.fieldset `
     position: relative;
     border: 2px solid lightgrey;
@@ -1194,37 +1403,60 @@ const SRadioTNodeLabel = styled_components_1.default.label `
 const SRadioTNodeBody = styled_components_1.default.div `
     padding: 12px 8px;
 `;
+const SRadioTNodeOptionInput = styled_components_1.default.input `
+    margin: 0px;
+    margin-right: 8px;
+`;
 const SRadioTNodeOptionLabel = styled_components_1.default.label `
-    display: block;
+    display: flex;
+    font-size: 14px;
+    align-items: center;
 `;
 const RadioTNode = ({ treeNode }) => {
-    const context = react_1.useContext(StepVariablesContext);
+    const context = react_1.useContext(StepVariablesContext_1.default);
     const onChange = react_1.useCallback((e) => {
         context.set(treeNode.name, e.target.value);
     }, [context, treeNode]);
     return (react_1.default.createElement(SRadioTNode, null,
         react_1.default.createElement(SRadioTNodeLabel, null, treeNode.title),
         react_1.default.createElement(SRadioTNodeBody, null, treeNode.options.map((option) => (react_1.default.createElement(SRadioTNodeOptionLabel, { key: option.value },
-            react_1.default.createElement("input", { type: "radio", checked: context.variables[treeNode.name] === option.value, value: option.value, onChange: onChange, disabled: !context.enabled }),
+            react_1.default.createElement(SRadioTNodeOptionInput, { type: "radio", checked: context.variables[treeNode.name] === option.value, value: option.value, onChange: onChange, disabled: !context.enabled }),
             option.title))))));
 };
-const STextTNode = styled_components_1.default.div `
-    margin-top: 8px;
-    line-height: 20px;
+exports.default = RadioTNode;
 
-    &::before {
-        content: '🛈';
-        color: grey;
-        margin-right: 4px;
-        font-size: 20px;
-        height: 20px;
-        display: inline-block;
-    }
-`;
-const TextTNode = ({ treeNode }) => {
-    const { render } = react_1.useContext(ChecklistDataContext_1.default);
-    return (react_1.default.createElement(STextTNode, null, render(treeNode.text)));
+
+/***/ }),
+/* 35 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const react_1 = __importStar(__webpack_require__(1));
+const styled_components_1 = __importDefault(__webpack_require__(13));
+const ChecklistDataContext_1 = __importDefault(__webpack_require__(28));
 const SCopyContainer = styled_components_1.default.div `
     position: relative;
     width: 28px;
@@ -1250,11 +1482,12 @@ const STextblockTNode = styled_components_1.default.div `
     background-color: black;
     margin-top: 8px;
     display: flex;
+    font-size: 14px;
 `;
 const STextblockTNodeText = styled_components_1.default.div `
     font-family: monospace;
-    white-space: pre;
     white-space: pre-line;
+    padding: 4px 0;
 `;
 const TextblockTNode = ({ treeNode }) => {
     const { render } = react_1.useContext(ChecklistDataContext_1.default);
@@ -1262,53 +1495,71 @@ const TextblockTNode = ({ treeNode }) => {
         navigator.clipboard.writeText(render(treeNode.text));
     }, [treeNode, render]);
     return (react_1.default.createElement(STextblockTNode, null,
-        react_1.default.createElement(SCopyContainer, { onClick: onClick }),
+        react_1.default.createElement(SCopyContainer, { onClick: onClick, title: "Copy" }),
         react_1.default.createElement(STextblockTNodeText, null, render(treeNode.text))));
 };
-const SLinkTNode = styled_components_1.default.a `
-    margin-top: 8px;
-    line-height: 20px;
-
-    &::before {
-        content: '➤';
-        margin-right: 4px;
-        font-size: 20px;
-        height: 20px;
-        display: inline-block;
-    }
-`;
-const LinkTNode = ({ treeNode }) => {
-    const { render } = react_1.useContext(ChecklistDataContext_1.default);
-    return react_1.default.createElement(SLinkTNode, { href: render(treeNode.href) }, render(treeNode.text));
-};
-function TNode({ treeNode }) {
-    switch (treeNode.type) {
-        case 'main':
-            return react_1.default.createElement(MainTNode, { treeNode: treeNode });
-        case 'section':
-            return react_1.default.createElement(SectionTNode, { treeNode: treeNode });
-        case 'step':
-            return react_1.default.createElement(StepTNode, { treeNode: treeNode });
-        case 'input':
-            return react_1.default.createElement(InputTNode, { treeNode: treeNode });
-        case 'radio':
-            return react_1.default.createElement(RadioTNode, { treeNode: treeNode });
-        case 'text':
-            return react_1.default.createElement(TextTNode, { treeNode: treeNode });
-        case 'textblock':
-            return react_1.default.createElement(TextblockTNode, { treeNode: treeNode });
-        case 'link':
-            return react_1.default.createElement(LinkTNode, { treeNode: treeNode });
-        default:
-            return null;
-        // return <div className={treeNode.type}>{treeNode.type}</div>;
-    }
-}
-exports.default = TNode;
+exports.default = TextblockTNode;
 
 
 /***/ }),
-/* 31 */
+/* 36 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const react_1 = __importStar(__webpack_require__(1));
+const styled_components_1 = __importDefault(__webpack_require__(13));
+const ChecklistDataContext_1 = __importDefault(__webpack_require__(28));
+const STextTNode = styled_components_1.default.div `
+    margin-top: 8px;
+    line-height: 20px;
+    font-size: 14px;
+    top: 2px;
+    position: relative;
+
+    &::before {
+        content: '〉';
+        color: darkgray;
+        margin-right: 4px;
+        font-size: 14px;
+        height: 20px;
+        display: inline-block;
+        font-weight: bold;
+        position: relative;
+        top: -1px;
+    }
+`;
+const TextTNode = ({ treeNode }) => {
+    const { render } = react_1.useContext(ChecklistDataContext_1.default);
+    return (react_1.default.createElement(STextTNode, null, render(treeNode.text)));
+};
+exports.default = TextTNode;
+
+
+/***/ }),
+/* 37 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
