@@ -58,7 +58,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importStar(__webpack_require__(13));
 const ChecklistApp_1 = __importDefault(__webpack_require__(22));
-const InputFile_1 = __importDefault(__webpack_require__(37));
+const MainPage_1 = __importDefault(__webpack_require__(35));
 const SApp = styled_components_1.default.div `
     background-color: #f2f2f2;
     min-height: 100vh;
@@ -80,17 +80,17 @@ const Global = styled_components_1.createGlobalStyle `
     }
 `;
 const App = () => {
-    const [data, setData] = react_1.useState('');
+    const [treeNode, setTreeNode] = react_1.useState();
     const [isRead, setRead] = react_1.useState(false);
-    const onChange = react_1.useCallback((value) => {
-        setData(value);
+    const onChange = react_1.useCallback((newTreeNode) => {
+        setTreeNode(newTreeNode);
         setRead(true);
     }, []);
     return (react_1.default.createElement(SApp, null,
         react_1.default.createElement(Global, null),
         !isRead
-            ? react_1.default.createElement(InputFile_1.default, { onChange: onChange })
-            : react_1.default.createElement(ChecklistApp_1.default, { xml: data })));
+            ? react_1.default.createElement(MainPage_1.default, { onChange: onChange })
+            : react_1.default.createElement(ChecklistApp_1.default, { treeNode: treeNode })));
 };
 exports.default = App;
 
@@ -135,19 +135,19 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importDefault(__webpack_require__(13));
 const Checklist_1 = __importDefault(__webpack_require__(23));
-const ChecklistDataContext_1 = __importDefault(__webpack_require__(28));
-const Info_1 = __importDefault(__webpack_require__(29));
-const TNode_1 = __importDefault(__webpack_require__(30));
+const ChecklistDataContext_1 = __importDefault(__webpack_require__(26));
+const Info_1 = __importDefault(__webpack_require__(27));
+const TNode_1 = __importDefault(__webpack_require__(28));
 const SChecklistApp = styled_components_1.default.div `
     display: grid;
     grid-gap: 16px;
     grid-template-columns: 3fr 1fr;
     max-width: 1024px;
 `;
-const ChecklistApp = ({ xml }) => {
-    const checklist = react_1.useMemo(() => new Checklist_1.default(xml, {}, {
+const ChecklistApp = ({ treeNode }) => {
+    const checklist = react_1.useMemo(() => new Checklist_1.default(treeNode, {}, {
         now: () => new Date().toLocaleString(),
-    }), [xml]);
+    }), [treeNode]);
     const [step, setStep] = react_1.useState(0);
     const finishStep = react_1.useCallback((values) => {
         checklist.finishStep(values);
@@ -189,12 +189,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const StepsStorage_1 = __importDefault(__webpack_require__(24));
 const Templater_1 = __webpack_require__(25);
-const TreeNode_1 = __webpack_require__(26);
-const XMLParser_1 = __webpack_require__(27);
 class Checklist {
-    constructor(xml, initial = {}, methods = {}) {
+    constructor(treeNode, initial = {}, methods = {}) {
         this.finished = false;
-        this.treeNode = this.convertXMLToTreeNode(xml);
+        this.treeNode = treeNode;
         this.steps = [];
         this.sections = [];
         this.methods = methods;
@@ -202,13 +200,6 @@ class Checklist {
         this.currentStep = this.nextStep();
         this.stepsStorage = new StepsStorage_1.default(initial);
         this.calc();
-    }
-    convertXMLToTreeNode(xml) {
-        const xmlNodes = XMLParser_1.parseXML(xml);
-        if (!xmlNodes.length) {
-            throw new Error('Invalid XML');
-        }
-        return TreeNode_1.convertXMLTreeNodeToTreeNode(xmlNodes[0], '', 0);
     }
     getTreeNode() {
         return this.treeNode;
@@ -516,282 +507,6 @@ exports.renderTemplate = renderTemplate;
 
 /***/ }),
 /* 26 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.convertXMLTreeNodeToTreeNode = void 0;
-const XMLParser_1 = __webpack_require__(27);
-function convertXMLTreeNodeToTreeNode(node, id, order) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
-    switch (node.tag) {
-        case 'main': {
-            return {
-                type: 'main',
-                title: (_a = node.attributes.title) !== null && _a !== void 0 ? _a : '',
-                children: node.children
-                    .map((aNode, i) => convertXMLTreeNodeToTreeNode(aNode, id, i))
-                    .filter(aNode => aNode !== null && aNode.type === 'section'),
-            };
-        }
-        case 'section': {
-            const thisId = id ? `${id}-${order}` : String(order);
-            let i = 0;
-            return {
-                type: 'section',
-                title: (_b = node.attributes.title) !== null && _b !== void 0 ? _b : '',
-                condition: (_c = node.attributes.condition) !== null && _c !== void 0 ? _c : '',
-                id: thisId,
-                children: node.children
-                    .map((aNode) => {
-                    if (aNode.tag === 'section' || aNode.tag === 'step') {
-                        // eslint-disable-next-line no-plusplus
-                        return convertXMLTreeNodeToTreeNode(aNode, thisId, i++);
-                    }
-                    return convertXMLTreeNodeToTreeNode(aNode, thisId, 0);
-                })
-                    .filter(aNode => aNode !== null && (aNode.type === 'section' || aNode.type === 'step')),
-            };
-        }
-        case 'step': {
-            const thisId = `${id}:${order}`;
-            const variables = {};
-            XMLParser_1.forEachXMLNode(node, (child) => {
-                if (child.attributes.name) {
-                    variables[child.attributes.name] = child.attributes.value || '';
-                }
-            });
-            return {
-                type: 'step',
-                title: (_d = node.attributes.title) !== null && _d !== void 0 ? _d : '',
-                condition: (_e = node.attributes.condition) !== null && _e !== void 0 ? _e : '',
-                id: thisId,
-                variables,
-                children: node.children
-                    .map((aNode) => convertXMLTreeNodeToTreeNode(aNode, id, 0))
-                    .filter((aNode) => aNode !== null && aNode.type !== 'variable' && aNode.type !== 'template'),
-            };
-        }
-        case 'variable': {
-            return {
-                type: 'variable',
-                name: (_f = node.attributes.name) !== null && _f !== void 0 ? _f : '',
-                value: (_g = node.attributes.value) !== null && _g !== void 0 ? _g : '',
-            };
-        }
-        case 'template': {
-            return {
-                type: 'template',
-                name: (_h = node.attributes.name) !== null && _h !== void 0 ? _h : '',
-                text: XMLParser_1.childrenToText(node),
-            };
-        }
-        case 'input': {
-            return {
-                type: 'input',
-                title: (_j = node.attributes.title) !== null && _j !== void 0 ? _j : '',
-                name: (_k = node.attributes.name) !== null && _k !== void 0 ? _k : '',
-                value: (_l = node.attributes.value) !== null && _l !== void 0 ? _l : '',
-            };
-        }
-        case 'text': {
-            return {
-                type: 'text',
-                text: XMLParser_1.childrenToText(node),
-            };
-        }
-        case 'textarea': {
-            return {
-                type: 'textarea',
-                text: XMLParser_1.childrenToText(node),
-            };
-        }
-        case 'textblock': {
-            return {
-                type: 'textblock',
-                text: XMLParser_1.childrenToText(node),
-            };
-        }
-        case 'image': {
-            return {
-                type: 'image',
-                src: (_m = node.attributes.src) !== null && _m !== void 0 ? _m : '',
-            };
-        }
-        case 'link': {
-            return {
-                type: 'link',
-                href: (_o = node.attributes.href) !== null && _o !== void 0 ? _o : '',
-                text: XMLParser_1.childrenToText(node),
-            };
-        }
-        case 'select': {
-            return {
-                type: 'select',
-                title: (_p = node.attributes.title) !== null && _p !== void 0 ? _p : '',
-                name: (_q = node.attributes.name) !== null && _q !== void 0 ? _q : '',
-                value: (_r = node.attributes.value) !== null && _r !== void 0 ? _r : '',
-                options: node.children
-                    .filter((aNode) => aNode.tag === 'option')
-                    .map((aNode) => {
-                    var _a;
-                    return ({
-                        title: XMLParser_1.childrenToText(aNode),
-                        value: (_a = aNode.attributes.value) !== null && _a !== void 0 ? _a : '',
-                    });
-                }),
-            };
-        }
-        case 'radio': {
-            return {
-                type: 'radio',
-                title: (_s = node.attributes.title) !== null && _s !== void 0 ? _s : '',
-                name: (_t = node.attributes.name) !== null && _t !== void 0 ? _t : '',
-                value: (_u = node.attributes.value) !== null && _u !== void 0 ? _u : '',
-                options: node.children
-                    .filter((aNode) => aNode.tag === 'option')
-                    .map((aNode) => {
-                    var _a;
-                    return ({
-                        title: XMLParser_1.childrenToText(aNode),
-                        value: (_a = aNode.attributes.value) !== null && _a !== void 0 ? _a : '',
-                    });
-                }),
-            };
-        }
-        default: return null;
-    }
-}
-exports.convertXMLTreeNodeToTreeNode = convertXMLTreeNodeToTreeNode;
-
-
-/***/ }),
-/* 27 */
-/***/ ((__unused_webpack_module, exports) => {
-
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.forEachXMLNode = exports.childrenToText = exports.parseXML = exports.extractAttributes = void 0;
-const RE_ATTR = /([^\s=]+?)\s*=\s*"(.*?)"|(\S+)/;
-// const RE_ATTR = /([^\s=]+?)\s*=\s*(["'])(.*?)\2|(\S+)/;
-// const RE_ATTR = /([^\s=]+?)\s*=\s*(["'])((?:[^"'\\]|\\.)*)\2|(\S+)/;
-function extractAttributes(str) {
-    const attrs = str
-        .trim()
-        .match(new RegExp(RE_ATTR, 'g'));
-    if (!attrs) {
-        return {};
-    }
-    return attrs
-        .reduce((obj, part) => {
-        const parts = RE_ATTR.exec(part);
-        if (parts) {
-            const [, key, value, keyValue] = parts;
-            if (key) {
-                obj[key] = value;
-            }
-            if (keyValue) {
-                obj[keyValue] = keyValue;
-            }
-        }
-        return obj;
-    }, {});
-}
-exports.extractAttributes = extractAttributes;
-const RE_TAG = /(<[^>]+>)/;
-const RE_TAG_ONE = /<(\S+?)(\s+.+?)?\s*\/>/;
-const RE_TAG_IN = /<(\S+?)(\s+.+?)?>/;
-const RE_TAG_OUT = /<\/(\S+?)>/;
-function parseXML(content) {
-    const elems = content
-        .replace(/<\?xml.*?\?>/g, '')
-        .trim()
-        .split(RE_TAG)
-        .map(str => str.trim())
-        .filter(Boolean);
-    // .filter((str, i) => i % 2 === 1);
-    // console.log(elems.map(s => s.replace(/</g, '&lt;').replace(/>/g, '&gt;')).join('\n'));
-    const stack = [];
-    for (let i = 0; i < elems.length; i++) {
-        const elem = elems[i];
-        let parts = RE_TAG_ONE.exec(elem);
-        if (parts) {
-            const xmlNode = {
-                tag: parts[1].toLowerCase(),
-                attributes: parts[2] ? extractAttributes(parts[2]) : {},
-                text: '',
-                children: [],
-            };
-            if (stack.length === 0) {
-                stack.push(xmlNode);
-            }
-            else {
-                stack[stack.length - 1].children.push(xmlNode);
-            }
-            // eslint-disable-next-line no-continue
-            continue;
-        }
-        parts = RE_TAG_OUT.exec(elem);
-        if (parts) {
-            const xmlNode = stack.pop();
-            if (!xmlNode) {
-                throw new Error('Stack is empty');
-            }
-            if (stack[stack.length - 1]) {
-                stack[stack.length - 1].children.push(xmlNode);
-            }
-            else {
-                stack.push(xmlNode);
-            }
-            // eslint-disable-next-line no-continue
-            continue;
-        }
-        parts = RE_TAG_IN.exec(elem);
-        if (parts) {
-            const xmlNode = {
-                tag: parts[1].toLowerCase(),
-                attributes: parts[2] ? extractAttributes(parts[2]) : {},
-                text: '',
-                children: [],
-            };
-            stack.push(xmlNode);
-            // eslint-disable-next-line no-continue
-            continue;
-        }
-        if (stack[stack.length - 1]) {
-            const xmlNode = {
-                tag: 'text',
-                attributes: {},
-                text: elem,
-                children: [],
-            };
-            if (stack.length === 0) {
-                stack.push(xmlNode);
-            }
-            else {
-                stack[stack.length - 1].children.push(xmlNode);
-            }
-        }
-    }
-    return stack;
-}
-exports.parseXML = parseXML;
-function childrenToText(xmlNode) {
-    return xmlNode.children
-        .filter((child) => child.tag === 'text')
-        .map((child) => child.text)
-        .join(' ');
-}
-exports.childrenToText = childrenToText;
-function forEachXMLNode(xmlNode, cb) {
-    cb(xmlNode);
-    xmlNode.children.forEach((child) => cb(child));
-}
-exports.forEachXMLNode = forEachXMLNode;
-
-
-/***/ }),
-/* 28 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -805,7 +520,7 @@ exports.default = ChecklistDataContext;
 
 
 /***/ }),
-/* 29 */
+/* 27 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -834,7 +549,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importDefault(__webpack_require__(13));
-const ChecklistDataContext_1 = __importDefault(__webpack_require__(28));
+const ChecklistDataContext_1 = __importDefault(__webpack_require__(26));
 const SInfo = styled_components_1.default.div `
     margin: 16px 4px 0;
     padding: 8px;
@@ -867,7 +582,7 @@ exports.default = Info;
 
 
 /***/ }),
-/* 30 */
+/* 28 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -896,13 +611,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importStar(__webpack_require__(13));
-const ChecklistDataContext_1 = __importDefault(__webpack_require__(28));
-const StepVariablesContext_1 = __importDefault(__webpack_require__(31));
-const InputTNode_1 = __importDefault(__webpack_require__(32));
-const LinkTNode_1 = __importDefault(__webpack_require__(33));
-const RadioTNode_1 = __importDefault(__webpack_require__(34));
-const TextblockTNode_1 = __importDefault(__webpack_require__(35));
-const TextTNode_1 = __importDefault(__webpack_require__(36));
+const ChecklistDataContext_1 = __importDefault(__webpack_require__(26));
+const StepVariablesContext_1 = __importDefault(__webpack_require__(29));
+const InputTNode_1 = __importDefault(__webpack_require__(30));
+const LinkTNode_1 = __importDefault(__webpack_require__(31));
+const RadioTNode_1 = __importDefault(__webpack_require__(32));
+const TextblockTNode_1 = __importDefault(__webpack_require__(33));
+const TextTNode_1 = __importDefault(__webpack_require__(34));
 const SMainTNode = styled_components_1.default.div `
     font-size: 16px;
     line-height: 20px;
@@ -1210,7 +925,7 @@ exports.default = TNode;
 
 
 /***/ }),
-/* 31 */
+/* 29 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1224,7 +939,7 @@ exports.default = StepVariablesContext;
 
 
 /***/ }),
-/* 32 */
+/* 30 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1253,7 +968,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importDefault(__webpack_require__(13));
-const StepVariablesContext_1 = __importDefault(__webpack_require__(31));
+const StepVariablesContext_1 = __importDefault(__webpack_require__(29));
 const SInputTNode = styled_components_1.default.div `
     position: relative;
     border: 2px solid lightgrey;
@@ -1298,7 +1013,7 @@ exports.default = InputTNode;
 
 
 /***/ }),
-/* 33 */
+/* 31 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1327,7 +1042,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importDefault(__webpack_require__(13));
-const ChecklistDataContext_1 = __importDefault(__webpack_require__(28));
+const ChecklistDataContext_1 = __importDefault(__webpack_require__(26));
 const SLinkTNode = styled_components_1.default.a `
     margin-top: 8px;
     line-height: 20px;
@@ -1352,7 +1067,7 @@ exports.default = LinkTNode;
 
 
 /***/ }),
-/* 34 */
+/* 32 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1381,7 +1096,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importDefault(__webpack_require__(13));
-const StepVariablesContext_1 = __importDefault(__webpack_require__(31));
+const StepVariablesContext_1 = __importDefault(__webpack_require__(29));
 const SRadioTNode = styled_components_1.default.fieldset `
     position: relative;
     border: 2px solid lightgrey;
@@ -1427,7 +1142,7 @@ exports.default = RadioTNode;
 
 
 /***/ }),
-/* 35 */
+/* 33 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1456,7 +1171,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importDefault(__webpack_require__(13));
-const ChecklistDataContext_1 = __importDefault(__webpack_require__(28));
+const ChecklistDataContext_1 = __importDefault(__webpack_require__(26));
 const SCopyContainer = styled_components_1.default.div `
     position: relative;
     width: 28px;
@@ -1502,7 +1217,7 @@ exports.default = TextblockTNode;
 
 
 /***/ }),
-/* 36 */
+/* 34 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1531,7 +1246,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importDefault(__webpack_require__(13));
-const ChecklistDataContext_1 = __importDefault(__webpack_require__(28));
+const ChecklistDataContext_1 = __importDefault(__webpack_require__(26));
 const STextTNode = styled_components_1.default.div `
     margin-top: 8px;
     line-height: 20px;
@@ -1559,7 +1274,413 @@ exports.default = TextTNode;
 
 
 /***/ }),
+/* 35 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const react_1 = __importStar(__webpack_require__(1));
+const styled_components_1 = __importDefault(__webpack_require__(13));
+const Parser_1 = __importDefault(__webpack_require__(36));
+const InputFile_1 = __importDefault(__webpack_require__(39));
+const ChecklistInfoBlock_1 = __importDefault(__webpack_require__(40));
+const SMainPage = styled_components_1.default.div `
+    & > * + * {
+        margin-top: 12px;
+    }
+`;
+const SMainPageTitle = styled_components_1.default.div `
+    font-size: 32px;
+    text-align: center;
+`;
+const SMainPageError = styled_components_1.default.div `
+    font-size: 16px;
+    text-align: center;
+    color: red;
+`;
+const MainPage = ({ onChange }) => {
+    const [checklistInfos, setChecklistInfos] = react_1.useState(() => {
+        return JSON.parse(localStorage.getItem('checklists') || '[]');
+    });
+    const update = react_1.useCallback((newChecklistInfos) => {
+        localStorage.setItem('checklists', JSON.stringify(newChecklistInfos));
+        setChecklistInfos(newChecklistInfos);
+    }, []);
+    const [error, setError] = react_1.useState('');
+    const onSubChange = react_1.useCallback((data) => {
+        try {
+            const treeNode = new Parser_1.default(data).parse();
+            if (treeNode.type === 'main') {
+                const newChecklistInfos = checklistInfos.concat();
+                newChecklistInfos.unshift({
+                    title: treeNode.title,
+                    created: Date.now(),
+                    used: Date.now(),
+                    xml: data,
+                });
+                update(newChecklistInfos);
+            }
+            onChange(treeNode);
+        }
+        catch (err) {
+            setError(err.message);
+        }
+    }, [checklistInfos, onChange, update]);
+    const onLoad = react_1.useCallback((info) => {
+        const newChecklistInfos = checklistInfos.filter((checklistInfo) => checklistInfo !== info);
+        newChecklistInfos.unshift(Object.assign(Object.assign({}, info), { used: Date.now() }));
+        try {
+            const treeNode = new Parser_1.default(info.xml).parse();
+            if (treeNode.type === 'main') {
+                update(newChecklistInfos);
+            }
+            onChange(treeNode);
+        }
+        catch (err) {
+            setError(err.message);
+        }
+        update(newChecklistInfos);
+    }, [checklistInfos, onChange, update]);
+    const onDelete = react_1.useCallback((info) => {
+        const newChecklistInfos = checklistInfos.filter((checklistInfo) => checklistInfo !== info);
+        update(newChecklistInfos);
+    }, [checklistInfos, update]);
+    return (react_1.default.createElement(SMainPage, null,
+        react_1.default.createElement(SMainPageTitle, null, "Checklist"),
+        react_1.default.createElement(InputFile_1.default, { onChange: onSubChange }),
+        error && react_1.default.createElement(SMainPageError, null, error),
+        checklistInfos.map((checklistInfo, i) => (react_1.default.createElement(ChecklistInfoBlock_1.default, { key: String(i), info: checklistInfo, onLoad: onLoad, onDelete: onDelete })))));
+};
+exports.default = MainPage;
+
+
+/***/ }),
+/* 36 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const TreeNode_1 = __webpack_require__(37);
+const XMLParser_1 = __webpack_require__(38);
+class Parser {
+    constructor(xml) {
+        this.xml = xml;
+    }
+    parse() {
+        const xmlNodes = XMLParser_1.parseXML(this.xml);
+        if (!xmlNodes.length) {
+            throw new Error('Invalid XML');
+        }
+        const treeNode = TreeNode_1.convertXMLTreeNodeToTreeNode(xmlNodes[0], '', 0);
+        if (treeNode.type !== 'main') {
+            throw new Error('Main node is not main');
+        }
+        return treeNode;
+    }
+}
+exports.default = Parser;
+
+
+/***/ }),
 /* 37 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.convertXMLTreeNodeToTreeNode = void 0;
+const XMLParser_1 = __webpack_require__(38);
+function convertXMLTreeNodeToTreeNode(node, id, order) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u;
+    switch (node.tag) {
+        case 'main': {
+            return {
+                type: 'main',
+                title: (_a = node.attributes.title) !== null && _a !== void 0 ? _a : '',
+                children: node.children
+                    .map((aNode, i) => convertXMLTreeNodeToTreeNode(aNode, id, i))
+                    .filter(aNode => aNode !== null && aNode.type === 'section'),
+            };
+        }
+        case 'section': {
+            const thisId = id ? `${id}-${order}` : String(order);
+            let i = 0;
+            return {
+                type: 'section',
+                title: (_b = node.attributes.title) !== null && _b !== void 0 ? _b : '',
+                condition: (_c = node.attributes.condition) !== null && _c !== void 0 ? _c : '',
+                id: thisId,
+                children: node.children
+                    .map((aNode) => {
+                    if (aNode.tag === 'section' || aNode.tag === 'step') {
+                        // eslint-disable-next-line no-plusplus
+                        return convertXMLTreeNodeToTreeNode(aNode, thisId, i++);
+                    }
+                    return convertXMLTreeNodeToTreeNode(aNode, thisId, 0);
+                })
+                    .filter(aNode => aNode !== null && (aNode.type === 'section' || aNode.type === 'step')),
+            };
+        }
+        case 'step': {
+            const thisId = `${id}:${order}`;
+            const variables = {};
+            XMLParser_1.forEachXMLNode(node, (child) => {
+                if (child.attributes.name) {
+                    variables[child.attributes.name] = child.attributes.value || '';
+                }
+            });
+            return {
+                type: 'step',
+                title: (_d = node.attributes.title) !== null && _d !== void 0 ? _d : '',
+                condition: (_e = node.attributes.condition) !== null && _e !== void 0 ? _e : '',
+                id: thisId,
+                variables,
+                children: node.children
+                    .map((aNode) => convertXMLTreeNodeToTreeNode(aNode, id, 0))
+                    .filter((aNode) => aNode !== null && aNode.type !== 'variable' && aNode.type !== 'template'),
+            };
+        }
+        case 'variable': {
+            return {
+                type: 'variable',
+                name: (_f = node.attributes.name) !== null && _f !== void 0 ? _f : '',
+                value: (_g = node.attributes.value) !== null && _g !== void 0 ? _g : '',
+            };
+        }
+        case 'template': {
+            return {
+                type: 'template',
+                name: (_h = node.attributes.name) !== null && _h !== void 0 ? _h : '',
+                text: XMLParser_1.childrenToText(node),
+            };
+        }
+        case 'input': {
+            return {
+                type: 'input',
+                title: (_j = node.attributes.title) !== null && _j !== void 0 ? _j : '',
+                name: (_k = node.attributes.name) !== null && _k !== void 0 ? _k : '',
+                value: (_l = node.attributes.value) !== null && _l !== void 0 ? _l : '',
+            };
+        }
+        case 'text': {
+            return {
+                type: 'text',
+                text: XMLParser_1.childrenToText(node),
+            };
+        }
+        case 'textarea': {
+            return {
+                type: 'textarea',
+                text: XMLParser_1.childrenToText(node),
+            };
+        }
+        case 'textblock': {
+            return {
+                type: 'textblock',
+                text: XMLParser_1.childrenToText(node),
+            };
+        }
+        case 'image': {
+            return {
+                type: 'image',
+                src: (_m = node.attributes.src) !== null && _m !== void 0 ? _m : '',
+            };
+        }
+        case 'link': {
+            return {
+                type: 'link',
+                href: (_o = node.attributes.href) !== null && _o !== void 0 ? _o : '',
+                text: XMLParser_1.childrenToText(node),
+            };
+        }
+        case 'select': {
+            return {
+                type: 'select',
+                title: (_p = node.attributes.title) !== null && _p !== void 0 ? _p : '',
+                name: (_q = node.attributes.name) !== null && _q !== void 0 ? _q : '',
+                value: (_r = node.attributes.value) !== null && _r !== void 0 ? _r : '',
+                options: node.children
+                    .filter((aNode) => aNode.tag === 'option')
+                    .map((aNode) => {
+                    var _a;
+                    return ({
+                        title: XMLParser_1.childrenToText(aNode),
+                        value: (_a = aNode.attributes.value) !== null && _a !== void 0 ? _a : '',
+                    });
+                }),
+            };
+        }
+        case 'radio': {
+            return {
+                type: 'radio',
+                title: (_s = node.attributes.title) !== null && _s !== void 0 ? _s : '',
+                name: (_t = node.attributes.name) !== null && _t !== void 0 ? _t : '',
+                value: (_u = node.attributes.value) !== null && _u !== void 0 ? _u : '',
+                options: node.children
+                    .filter((aNode) => aNode.tag === 'option')
+                    .map((aNode) => {
+                    var _a;
+                    return ({
+                        title: XMLParser_1.childrenToText(aNode),
+                        value: (_a = aNode.attributes.value) !== null && _a !== void 0 ? _a : '',
+                    });
+                }),
+            };
+        }
+        default: return null;
+    }
+}
+exports.convertXMLTreeNodeToTreeNode = convertXMLTreeNodeToTreeNode;
+
+
+/***/ }),
+/* 38 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.forEachXMLNode = exports.childrenToText = exports.parseXML = exports.extractAttributes = void 0;
+const RE_ATTR = /([^\s=]+?)\s*=\s*"(.*?)"|(\S+)/;
+// const RE_ATTR = /([^\s=]+?)\s*=\s*(["'])(.*?)\2|(\S+)/;
+// const RE_ATTR = /([^\s=]+?)\s*=\s*(["'])((?:[^"'\\]|\\.)*)\2|(\S+)/;
+function extractAttributes(str) {
+    const attrs = str
+        .trim()
+        .match(new RegExp(RE_ATTR, 'g'));
+    if (!attrs) {
+        return {};
+    }
+    return attrs
+        .reduce((obj, part) => {
+        const parts = RE_ATTR.exec(part);
+        if (parts) {
+            const [, key, value, keyValue] = parts;
+            if (key) {
+                obj[key] = value;
+            }
+            if (keyValue) {
+                obj[keyValue] = keyValue;
+            }
+        }
+        return obj;
+    }, {});
+}
+exports.extractAttributes = extractAttributes;
+const RE_TAG = /(<[^>]+>)/;
+const RE_TAG_ONE = /<(\S+?)(\s+.+?)?\s*\/>/;
+const RE_TAG_IN = /<(\S+?)(\s+.+?)?>/;
+const RE_TAG_OUT = /<\/(\S+?)>/;
+function parseXML(content) {
+    const elems = content
+        .replace(/<\?xml.*?\?>/g, '')
+        .trim()
+        .split(RE_TAG)
+        .map(str => str.trim())
+        .filter(Boolean);
+    // .filter((str, i) => i % 2 === 1);
+    // console.log(elems.map(s => s.replace(/</g, '&lt;').replace(/>/g, '&gt;')).join('\n'));
+    const stack = [];
+    for (let i = 0; i < elems.length; i++) {
+        const elem = elems[i];
+        let parts = RE_TAG_ONE.exec(elem);
+        if (parts) {
+            const xmlNode = {
+                tag: parts[1].toLowerCase(),
+                attributes: parts[2] ? extractAttributes(parts[2]) : {},
+                text: '',
+                children: [],
+            };
+            if (stack.length === 0) {
+                stack.push(xmlNode);
+            }
+            else {
+                stack[stack.length - 1].children.push(xmlNode);
+            }
+            // eslint-disable-next-line no-continue
+            continue;
+        }
+        parts = RE_TAG_OUT.exec(elem);
+        if (parts) {
+            const xmlNode = stack.pop();
+            if (!xmlNode) {
+                throw new Error('Stack is empty');
+            }
+            if (stack[stack.length - 1]) {
+                stack[stack.length - 1].children.push(xmlNode);
+            }
+            else {
+                stack.push(xmlNode);
+            }
+            // eslint-disable-next-line no-continue
+            continue;
+        }
+        parts = RE_TAG_IN.exec(elem);
+        if (parts) {
+            const xmlNode = {
+                tag: parts[1].toLowerCase(),
+                attributes: parts[2] ? extractAttributes(parts[2]) : {},
+                text: '',
+                children: [],
+            };
+            stack.push(xmlNode);
+            // eslint-disable-next-line no-continue
+            continue;
+        }
+        if (stack[stack.length - 1]) {
+            const xmlNode = {
+                tag: 'text',
+                attributes: {},
+                text: elem,
+                children: [],
+            };
+            if (stack.length === 0) {
+                stack.push(xmlNode);
+            }
+            else {
+                stack[stack.length - 1].children.push(xmlNode);
+            }
+        }
+    }
+    return stack;
+}
+exports.parseXML = parseXML;
+function childrenToText(xmlNode) {
+    return xmlNode.children
+        .filter((child) => child.tag === 'text')
+        .map((child) => child.text)
+        .join(' ');
+}
+exports.childrenToText = childrenToText;
+function forEachXMLNode(xmlNode, cb) {
+    cb(xmlNode);
+    xmlNode.children.forEach((child) => cb(child));
+}
+exports.forEachXMLNode = forEachXMLNode;
+
+
+/***/ }),
+/* 39 */
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
@@ -1618,21 +1739,105 @@ const InputFile = ({ onChange }) => {
             onChange(fr.result);
         };
     }, [onChange]);
-    const onDrop = react_1.useCallback((e) => {
-        if (!e.dataTransfer.files[0]) {
-            return;
-        }
-        const fr = new FileReader();
-        fr.readAsText(e.dataTransfer.files[0]);
-        fr.onload = () => {
-            onChange(fr.result);
-        };
-    }, [onChange]);
     return (react_1.default.createElement(SLabel, null,
-        react_1.default.createElement(SInput, { type: "file", name: "file", accept: ".xml", onChange: onSubChange, onDrop: onDrop }),
+        react_1.default.createElement(SInput, { type: "file", name: "file", accept: ".xml", onChange: onSubChange }),
         "Put file"));
 };
 exports.default = InputFile;
+
+
+/***/ }),
+/* 40 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const react_1 = __importStar(__webpack_require__(1));
+const styled_components_1 = __importDefault(__webpack_require__(13));
+const SChecklistInfoBlock = styled_components_1.default.div `
+    padding: 8px;
+    border: 1px solid grey;
+    display: flex;
+    align-items: baseline;
+
+    & > * + * {
+        margin-left: 8px;
+    }
+`;
+const SChecklistInfoBlockTitle = styled_components_1.default.div `
+    color: black;
+    font-weight: bold;
+    font-size: 20px;
+`;
+const SChecklistInfoBlockDate = styled_components_1.default.div `
+    color: grey;
+    font-size: 14px;
+`;
+const SChecklistInfoBlockSpan = styled_components_1.default.div `
+    flex-grow: 1;
+`;
+const SChecklistInfoBlockLoad = styled_components_1.default.button `
+    color: white;
+    text-shadow: 0 0 1px black;
+    background-color: blue;
+    padding: 8px;
+    border: 1px solid lightgray;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+`;
+const SChecklistInfoBlockDelete = styled_components_1.default.button `
+    color: white;
+    text-shadow: 0 0 1px black;
+    background-color: red;
+    padding: 8px;
+    border: 1px solid lightgray;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+`;
+const ChecklistInfoBlock = ({ info, onLoad, onDelete }) => {
+    const onSubLoad = react_1.useCallback(() => {
+        onLoad(info);
+    }, [info, onLoad]);
+    const onSubDelete = react_1.useCallback(() => {
+        onDelete(info);
+    }, [info, onDelete]);
+    return (react_1.default.createElement(SChecklistInfoBlock, null,
+        react_1.default.createElement(SChecklistInfoBlockTitle, null, info.title),
+        react_1.default.createElement(SChecklistInfoBlockDate, null,
+            "- ",
+            new Date(info.used).toLocaleString(),
+            " (",
+            new Date(info.created).toLocaleString(),
+            ")"),
+        react_1.default.createElement(SChecklistInfoBlockSpan, null),
+        react_1.default.createElement(SChecklistInfoBlockLoad, { onClick: onSubLoad }, "Load"),
+        react_1.default.createElement(SChecklistInfoBlockDelete, { onClick: onSubDelete }, "Delete")));
+};
+exports.default = ChecklistInfoBlock;
 
 
 /***/ })
