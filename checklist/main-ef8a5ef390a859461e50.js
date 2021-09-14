@@ -139,6 +139,9 @@ const ChecklistDataContext_1 = __importDefault(__webpack_require__(26));
 const Info_1 = __importDefault(__webpack_require__(27));
 const TNode_1 = __importDefault(__webpack_require__(28));
 const SChecklistApp = styled_components_1.default.div `
+    display: block;
+`;
+const SChecklistAppMainSection = styled_components_1.default.div `
     display: grid;
     grid-gap: 16px;
     grid-template-columns: 3fr 1fr;
@@ -159,6 +162,18 @@ const ChecklistApp = ({ treeNode }) => {
     const getStepInitialVariables = react_1.useCallback((aStep) => {
         return checklist.getStepInitialVariables(aStep);
     }, [checklist]);
+    const openLink = react_1.useCallback((href) => {
+        const currentTreeNode = checklist.findTreeNode(checklist.getCurrentStep().id);
+        if (!currentTreeNode) {
+            return;
+        }
+        const width = window.outerWidth;
+        const height = window.innerHeight;
+        const top = window.screenTop;
+        const left = window.screenLeft;
+        const newWindow = window.open(href, currentTreeNode.type === 'step' ? currentTreeNode.title : '', `top=${top},left=${left + Math.floor(width / 2)},height=${height},width=${Math.floor(width / 2)},resizable,scrollbars,status`);
+        newWindow.focus();
+    }, [checklist]);
     const checklistData = react_1.useMemo(() => ({
         steps: checklist.getSteps(),
         sections: checklist.getSections(),
@@ -167,13 +182,15 @@ const ChecklistApp = ({ treeNode }) => {
         current: checklist.getCurrentStep(),
         finished: checklist.isFisished(),
         getStepInitialVariables,
+        openLink,
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }), [checklist, finishStep, render, step]);
     return (react_1.default.createElement(ChecklistDataContext_1.default.Provider, { value: checklistData },
         react_1.default.createElement(SChecklistApp, null,
-            react_1.default.createElement(TNode_1.default, { treeNode: checklist.getTreeNode() }),
-            react_1.default.createElement("div", null,
-                react_1.default.createElement(Info_1.default, null)))));
+            react_1.default.createElement(SChecklistAppMainSection, null,
+                react_1.default.createElement(TNode_1.default, { treeNode: checklist.getTreeNode() }),
+                react_1.default.createElement("div", null,
+                    react_1.default.createElement(Info_1.default, null))))));
 };
 exports.default = ChecklistApp;
 
@@ -281,6 +298,26 @@ class Checklist {
             const section = step.id.split(':')[0];
             return step.enabled && this.getSection(section).enabled;
         });
+    }
+    subFindTreeNode(treeNode, id) {
+        if (treeNode.type === 'main') {
+            return treeNode.children.find(aTreeNode => this.subFindTreeNode(aTreeNode, id));
+        }
+        if (treeNode.type === 'section') {
+            if (treeNode.id === id) {
+                return treeNode;
+            }
+            return treeNode.children.find(aTreeNode => this.subFindTreeNode(aTreeNode, id));
+        }
+        if (treeNode.type === 'step') {
+            if (treeNode.id === id) {
+                return treeNode;
+            }
+        }
+        return undefined;
+    }
+    findTreeNode(id) {
+        return this.subFindTreeNode(this.treeNode, id);
     }
     getSection(id) {
         return this.sections.find((section) => section.id === id);
@@ -500,7 +537,10 @@ function renderTemplate(template, variables, methods) {
             return '';
         });
     } while (newTemplate !== oldTemplate);
-    return replace(newTemplate, variables, methods, '').split('/n').map(str => str.trim()).join('/n');
+    return replace(newTemplate, variables, methods, '')
+        .split('/n')
+        .map(str => str.trim())
+        .join('/n');
 }
 exports.renderTemplate = renderTemplate;
 
@@ -815,10 +855,41 @@ const SStepTNodeTitle = styled_components_1.default.div `
     color: white;
     background-color: var(--border-color);
     border-top-right-radius: 8px;
+    ${({ expanded }) => expanded
+    ? styled_components_1.css ``
+    : styled_components_1.css `border-bottom-right-radius: 8px;`}
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+`;
+const SStepTNodeToggleer = styled_components_1.default.div `
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 24px;
+    line-height: 24px;
+    text-align: center;
+
+    ${({ toggled }) => toggled
+    ? styled_components_1.css `transform: scaleY(-1);`
+    : styled_components_1.css `transform: scaleY(1);`}
+
+    &::before {
+        content: '↓';
+    }
+
+    &:hover {
+        color: aqua;
+    }
 `;
 const SStepTNodeBody = styled_components_1.default.div `
     border-top: 1px solid rgb(0 0 0 / 10%);
     padding: 10px 20px;
+
+    ${({ expanded }) => expanded
+    ? styled_components_1.css `display: block;`
+    : styled_components_1.css `display: none;`}
 
     & > * + * {
         margin-top: 8px;
@@ -888,13 +959,23 @@ const StepTNode = ({ treeNode }) => {
         : canFinish
             ? 'Finish'
             : 'Waiting for fill fields...';
+    const [expanded, setExpanded] = react_1.useState(step === current);
+    react_1.useEffect(() => {
+        if (step === current) {
+            setExpanded(true);
+        }
+    }, [current, step]);
+    const onToggle = react_1.useCallback(() => {
+        setExpanded(value => !value);
+    }, []);
     return (react_1.default.createElement(SStepTNode, { enabled: step.enabled, active: step === current, finished: step.finished, ref: ref },
         react_1.default.createElement(SStepTNodeContainer, null,
-            react_1.default.createElement(SStepTNodeTitle, null,
+            react_1.default.createElement(SStepTNodeTitle, { expanded: expanded },
                 order,
                 ". ",
-                treeNode.title),
-            react_1.default.createElement(SStepTNodeBody, null,
+                treeNode.title,
+                react_1.default.createElement(SStepTNodeToggleer, { toggled: expanded, onClick: onToggle })),
+            react_1.default.createElement(SStepTNodeBody, { expanded: expanded },
                 react_1.default.createElement(StepVariablesContext_1.default.Provider, { value: context }, treeNode.children.map((child, i) => react_1.default.createElement(TNode, { key: String(i), treeNode: child }))),
                 (step.finished || step === current) && (react_1.default.createElement(SStepTNodeButton, { enabled: canFinish, onClick: onClick }, buttonText))))));
 };
@@ -1043,7 +1124,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const react_1 = __importStar(__webpack_require__(1));
 const styled_components_1 = __importDefault(__webpack_require__(13));
 const ChecklistDataContext_1 = __importDefault(__webpack_require__(26));
-const SLinkTNode = styled_components_1.default.a `
+const SLinkTNode = styled_components_1.default.div `
     margin-top: 8px;
     line-height: 20px;
     font-size: 14px;
@@ -1059,9 +1140,32 @@ const SLinkTNode = styled_components_1.default.a `
         display: inline-block;
     }
 `;
+const SLinkTNodeA = styled_components_1.default.a `
+    flex-grow: 1;
+`;
+const SLinkTNodeButton = styled_components_1.default.a `
+    flex-shrink: 1;
+    color: grey;
+    font-weight: bold;
+    opacity: 0;
+    transition: all 0.3s;
+
+    ${SLinkTNode}:hover & {
+        opacity: 1;
+    }
+
+    &:hover {
+        color: black;
+    }
+`;
 const LinkTNode = ({ treeNode }) => {
-    const { render } = react_1.useContext(ChecklistDataContext_1.default);
-    return react_1.default.createElement(SLinkTNode, { href: render(treeNode.href) }, render(treeNode.text));
+    const { render, openLink } = react_1.useContext(ChecklistDataContext_1.default);
+    const onClick = react_1.useCallback(() => {
+        openLink(render(treeNode.href));
+    }, [openLink, render, treeNode]);
+    return (react_1.default.createElement(SLinkTNode, null,
+        react_1.default.createElement(SLinkTNodeA, { href: render(treeNode.href), target: "blank" }, render(treeNode.text)),
+        react_1.default.createElement(SLinkTNodeButton, { onClick: onClick }, "new window")));
 };
 exports.default = LinkTNode;
 
@@ -1174,20 +1278,20 @@ const styled_components_1 = __importDefault(__webpack_require__(13));
 const ChecklistDataContext_1 = __importDefault(__webpack_require__(26));
 const SCopyContainer = styled_components_1.default.div `
     position: relative;
-    width: 28px;
+    width: 24px;
     height: 24px;
     flex-shrink: 0;
     cursor: pointer;
 
     &::before {
-        content: '📄';
+        content: '⧉';
         position: absolute;
         left: 4px;
-    }
-    &::after {
-        content: '📄';
-        position: absolute;
         top: 4px;
+    }
+
+    &:hover {
+        color: aqua;
     }
 `;
 const STextblockTNode = styled_components_1.default.div `
