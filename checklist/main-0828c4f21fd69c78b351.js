@@ -300,18 +300,15 @@ class Checklist {
         });
     }
     subFindTreeNode(treeNode, id) {
-        if (treeNode.type === 'main') {
-            return treeNode.children.find(aTreeNode => this.subFindTreeNode(aTreeNode, id));
+        if ((treeNode.type === 'step' || treeNode.type === 'section') && treeNode.id === id) {
+            return treeNode;
         }
-        if (treeNode.type === 'section') {
-            if (treeNode.id === id) {
-                return treeNode;
-            }
-            return treeNode.children.find(aTreeNode => this.subFindTreeNode(aTreeNode, id));
-        }
-        if (treeNode.type === 'step') {
-            if (treeNode.id === id) {
-                return treeNode;
+        if (treeNode.type === 'main' || treeNode.type === 'section') {
+            for (let i = 0; i < treeNode.children.length; i++) {
+                const sameNode = this.subFindTreeNode(treeNode.children[i], id);
+                if (sameNode) {
+                    return sameNode;
+                }
             }
         }
         return undefined;
@@ -719,10 +716,11 @@ const SSectionTNode = styled_components_1.default.div `
         width: calc(var(--size) * 2);
         height: calc(var(--size) * 2);
         box-sizing: border-box;
-        background: white;
-        border: 6px solid var(--border-color);
+        border: 4px solid white;
         top: 0;
         left: 0;
+        background: var(--border-color);
+        box-shadow: 0 0 0 2px lightgrey;
     }
 
     & & {
@@ -817,11 +815,12 @@ const SStepTNode = styled_components_1.default.div `
         width: calc(var(--size) * 2);
         height: calc(var(--size) * 2);
         box-sizing: border-box;
-        border: 8px solid var(--border-color);
+        border: 4px solid white;
         border-radius: 50%;
         top: 0;
         left: 0;
-        background: white;
+        background: var(--border-color);
+        box-shadow: 0 0 0 2px lightgrey;
     }
 `;
 const SStepTNodeContainer = styled_components_1.default.div `
@@ -932,11 +931,19 @@ const StepTNode = ({ treeNode }) => {
             setCanFinish(Object.values(newVariables).every(Boolean));
         }
     }, [treeNode, render, step, current, getStepInitialVariables]);
+    const [timer, setTimer] = react_1.useState(undefined);
     react_1.useLayoutEffect(() => {
         if (step === current) {
-            ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimer(setTimeout(() => {
+                ref.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            }, 100));
         }
     }, [step, current]);
+    react_1.useEffect(() => {
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [timer]);
     const onClick = react_1.useCallback(() => {
         if (step === current && Object.values(variables).every(Boolean)) {
             finishStep(variables);
@@ -1147,8 +1154,9 @@ const SLinkTNodeButton = styled_components_1.default.a `
     flex-shrink: 1;
     color: grey;
     font-weight: bold;
-    opacity: 0;
+    opacity: 0.5;
     transition: all 0.3s;
+    cursor: pointer;
 
     ${SLinkTNode}:hover & {
         opacity: 1;
