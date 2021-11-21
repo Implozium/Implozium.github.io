@@ -1,0 +1,1 @@
+rm -rf ./checklist && cd ../NodeJS/Checklist && rm -rf ./build && npm run build && cp -r ./build ../../implozium/checklist;

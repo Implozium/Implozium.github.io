@@ -495,13 +495,23 @@ function calcBlock(str, variables, methods) {
         if (!op) {
             return result;
         }
-        if (op === 'and' && result) {
-            // eslint-disable-next-line no-continue
-            continue;
+        if (op === 'and') {
+            if (result) {
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+            else {
+                return false;
+            }
         }
-        if (op === 'or' && !result) {
-            // eslint-disable-next-line no-continue
-            continue;
+        if (op === 'or') {
+            if (!result) {
+                // eslint-disable-next-line no-continue
+                continue;
+            }
+            else {
+                return true;
+            }
         }
         return true;
     }
@@ -515,13 +525,13 @@ function calc(str, variables, methods) {
     do {
         oldExpressions = newExpressions;
         newExpressions = newExpressions.replace(RE_BLOCK, (_, p1) => {
-            return calcBlock(p1, variables, methods) ? 'true' : '';
+            return calcBlock(p1, variables, methods) ? '"true"' : '';
         });
     } while (newExpressions !== oldExpressions);
     return calcBlock(newExpressions, variables, methods);
 }
 exports.calc = calc;
-const RE_TEMPLATE_BLOCK = /\{\{([^:]+):(.+?)\}\}([^}].*)\{\{:\1\}\}/gs;
+const RE_TEMPLATE_BLOCK = /\{\{([^:]+):(.+?)\}\}(.*?)\{\{:\1\}\}/gs;
 function renderTemplate(template, variables, methods) {
     let newTemplate = template;
     let oldTemplate = template;
@@ -535,9 +545,12 @@ function renderTemplate(template, variables, methods) {
         });
     } while (newTemplate !== oldTemplate);
     return replace(newTemplate, variables, methods, '')
-        .split('/n')
+        .split('\n')
         .map(str => str.trim())
-        .join('/n');
+        .join('\n')
+        .replace(/\n\{\{rmel\}\}/g, '')
+        .replace(/\{\{rmel\}\}/g, '')
+        .trim();
 }
 exports.renderTemplate = renderTemplate;
 
@@ -1290,16 +1303,21 @@ const SCopyContainer = styled_components_1.default.div `
     height: 24px;
     flex-shrink: 0;
     cursor: pointer;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    top: 2px;
 
     &::before {
         content: '⧉';
         position: absolute;
         left: 4px;
-        top: 4px;
+        top: 2px;
     }
 
     &:hover {
-        color: aqua;
+        border: 1px solid #ffffff88;
+        background: #ffffff22;
     }
 `;
 const STextblockTNode = styled_components_1.default.div `
